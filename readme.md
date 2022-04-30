@@ -1,5 +1,7 @@
 ## print2a.com-collector
 
+# WORK IN PROGRESS
+
 this uses lbry app and lbrytools repo to download files from a list of lbry channels!
 
 download lbry app to your desktop
