@@ -21,7 +21,7 @@ import os, sys, argparse, shutil, patoolib
 
 cwd = "C:\\Users\\HostsServer\\Downloads\\p2aup"
 
-channels_list = ['@AreWeCoolYet:7']
+channels_list = open("links.txt").readlines()
 
 # Globals:
 MAX_SEARCH_CLAIMS = 10000
