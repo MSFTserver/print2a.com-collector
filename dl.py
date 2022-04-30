@@ -21,7 +21,7 @@ import os, sys, argparse, shutil, patoolib
 
 cwd = "C:\\Users\\HostsServer\\Downloads\\p2aup"
 
-channels_list = open("links.txt").readlines()
+channels_list = [s.replace("https://odysee.com/", "").replace(":","#") for s in open("links.txt").readlines()]
 
 # Globals:
 MAX_SEARCH_CLAIMS = 10000
