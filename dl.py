@@ -16,9 +16,10 @@ lbrytools.ch_download_latest() for that many entries.
 '''
 from datetime import datetime
 from typing import Optional
-import argparse
-import sys
 import lbrytools as lt
+import os, sys, argparse, shutil, patoolib
+
+cwd = "C:\\Users\\HostsServer\\Downloads\\p2aup"
 
 channels_list = ['@AreWeCoolYet:7']
 
@@ -77,7 +78,32 @@ def download_channel(channel: str,
     with _download().
     '''
     num_downloads = find_num_downloads(channel, download_date)
+    print(f'Found {num_downloads} uploads from {channel}')
     _download(channel, num_downloads, download_path)
+
+def remove_dup_folders(rm_folder):
+    dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
+
+    # detect if the subdirectory has same name as parent directory if it does move it to the parent directory
+    for dir in dirs:
+        folder = os.path.join(rm_folder, dir)
+        folders = [ name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name)) ]
+        for subfolder in folders:
+            if subfolder == os.path.basename(folder):
+                shutil.move(os.path.join(folder, subfolder), folder+'_p2aup1')
+                shutil.rmtree(folder,ignore_errors=True)
+                os.rename(folder+'_p2aup1', folder)
+
+
+def extract_archives(root_path):
+    for file in os.listdir(root_path):
+        name, ext = os.path.splitext(file)
+        out_path = f'{root_path}{os.path.sep}{name}'
+        if ext == 'rar':
+            print(file)
+            patoolib.extract_archive(os.path.join(root_path, file), outdir=out_path)
+            #remove_dup_folders(out_path)
+            #os.remove(os.path.join(root_path, file))
 
 
 def main() -> None:
@@ -91,7 +117,7 @@ def main() -> None:
                         type=str, required=False)
     args = parser.parse_args()
     if not args.path:
-        download_path = 'C:\\Users\\HostsServer\\Downloads\\p2aup'
+        download_path = cwd
     else:
         download_path = args.path
     if not args.after_date:
@@ -104,13 +130,20 @@ def main() -> None:
             print(f'Use timestamp format: {TS_FORMAT}')
             print(f'Exception caught: {repr(err)}')
             sys.exit(1)
+    print(f'Downloading from {dt} to current time')
+    print(f'Downloading to {download_path}')
+    print(f'Downloading from a total of {len(channels_list)} channels')
     for channel_name in channels_list:
         try:
+            print(f'Downloading from {channel_name}...')
             download_channel(channel_name, dt, download_path)
         except (TypeError, ValueError, KeyError) as err:
             print(f'Caught exception while downloading channel {channel_name}')
             print(f'Exception caught: {repr(err)}')
             sys.exit(1)
+    print(f"Extracting Archives...")
+    #extract_archives(download_path)
+    print('done')
     sys.exit(0)
 
 
