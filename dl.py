@@ -68,6 +68,7 @@ def _download(channel: str,
         ddir=download_path,
         own_dir=False,
         save_file=True,
+        repost=False,
         server=SERVER
     )
 
