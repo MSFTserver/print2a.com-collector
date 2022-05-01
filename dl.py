@@ -81,7 +81,6 @@ def download_channel(channel: str,
     with _download().
     '''
     num_downloads = find_num_downloads(channel, download_date)
-    print(f'Found {num_downloads} uploads from {channel}')
     _download(channel, num_downloads, download_path)
 
 def rename(dir, is_dir, filename, new_filename, join_filenames):
@@ -131,10 +130,10 @@ def sanitize_names(dir, filename, is_dir):
         filename = new_filename
         if is_dir:
             dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
-    if "_-_" in filename:
+    if any(char in filename for char in ["_-_", "_-", "-_"]):
         join_filenames = "-"
-        fn_parts = [w for w in filename.split('_-_')]
-        new_filename = join_filenames.join(fn_parts)
+        joined_unfriendly = "|".join(["_-_", "_-", "-_"])
+        new_filename = re.sub(f'{joined_unfriendly}', join_filenames, filename)
         rename(dir, is_dir, filename, new_filename, join_filenames)
         filename = new_filename
         if is_dir:
@@ -150,31 +149,49 @@ def make_friendly(path):
             sanitize_names(dir, filename, False)
     os.chdir(cwd)
 
-def remove_dup_folders(rm_folder):
+def remove_dup_folders(rm_folder,project_name):
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
     for dir in dirs:
         folder = os.path.join(rm_folder, dir)
+        print('folder : ',folder)
         folders = [ name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name)) ]
         for subfolder in folders:
-            if subfolder == os.path.basename(folder):
-                shutil.move(os.path.join(folder, subfolder), folder+'_p2aup1')
-                shutil.rmtree(folder,ignore_errors=True)
-                os.rename(folder+'_p2aup1', folder)
+            print('folder base : ',os.path.basename(rm_folder))
+            dir_base_name = list(filter(None, os.path.basename(rm_folder).split(project_name+'-', 1)))
+            print('dir_base_name : ',dir_base_name)
+            if len(dir_base_name) == 2:
+                dir_base_name = dir_base_name[1]
+            else:
+                dir_base_name = os.path.basename(folder)
+            print('subfolder : ',subfolder)
+            print('dir_base_name : ',dir_base_name)
+            if subfolder == dir_base_name:
+                print('moved : '+os.path.join(dir_base_name, subfolder))
+                print('to : '+folder+'_p2aup1')
+                print('renamed : '+folder)
+                #shutil.move(os.path.join(dir_base_name, subfolder), folder+'_p2aup1')
+                #shutil.rmtree(folder,ignore_errors=True)
+                #os.rename(folder+'_p2aup1', folder)
 
 
 def extract_archives(root_path):
-    for file in os.listdir(root_path):
-        name, ext = os.path.splitext(file)
-        out_path = f'{root_path}{os.path.sep}{name}'
-        if ext in ['.rar', '.zip', '.7z']:
-            print(file)
-            patoolib.extract_archive(os.path.join(root_path, file), outdir=out_path)
-            remove_dup_folders(out_path)
-            os.remove(os.path.join(root_path, file))
-        else:
-            os.makedirs(out_path, exist_ok=True)
-            shutil.move(os.path.join(root_path, file), out_path)
-            print("Not an archive")
+    print(root_path)
+    for dir,subdir,listfilename in os.walk(root_path):
+        for dir in subdir:
+            project_name = dir.replace('@','').rsplit('_',1)[0]
+            for file in os.listdir(f'{root_path}{os.path.sep}{dir}'):
+                name, ext = os.path.splitext(file)
+                new_name = f'{project_name}-{name}'
+                out_path = f'{root_path}{os.path.sep}{new_name}'
+                if ext in ['.rar', '.zip', '.7z']:
+                    patoolib.extract_archive(os.path.join(root_path, dir, file), outdir=out_path)
+                    remove_dup_folders(out_path,project_name)
+                    os.remove(os.path.join(root_path, dir, file))
+                else:
+                    #os.makedirs(out_path, exist_ok=True)
+                    #shutil.move(os.path.join(root_path, dir, file), out_path)
+                    print("Not an archive")
+            os.rmdir(os.path.join(root_path, dir))
 
 
 def main() -> None:
@@ -207,7 +224,7 @@ def main() -> None:
     for channel_name in channels_list:
         try:
             print(f'Downloading from {channel_name}...')
-            download_channel(channel_name, dt, download_path)
+            #download_channel(channel_name, dt, download_path)
         except (TypeError, ValueError, KeyError) as err:
             print(f'Caught exception while downloading channel {channel_name}')
             print(f'Exception caught: {repr(err)}')
@@ -215,7 +232,7 @@ def main() -> None:
     print(f"Extracting Archives...")
     extract_archives(download_path)
     print(f"Sanitizing names...")
-    make_friendly(dl_path)
+    #make_friendly(dl_path)
     sys.exit(0)
 
 
