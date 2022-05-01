@@ -66,6 +66,7 @@ def _download(channel: str,
         channel=channel,
         number=max_downloads,
         ddir=download_path,
+        own_dir=False,
         save_file=True,
         server=SERVER
     )
@@ -151,8 +152,6 @@ def make_friendly(path):
 
 def remove_dup_folders(rm_folder):
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
-
-    # detect if the subdirectory has same name as parent directory if it does move it to the parent directory
     for dir in dirs:
         folder = os.path.join(rm_folder, dir)
         folders = [ name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name)) ]
@@ -173,7 +172,6 @@ def extract_archives(root_path):
             remove_dup_folders(out_path)
             os.remove(os.path.join(root_path, file))
         else:
-            #create folder of file name and add file to it
             os.makedirs(out_path, exist_ok=True)
             shutil.move(os.path.join(root_path, file), out_path)
             print("Not an archive")
