@@ -17,10 +17,11 @@ lbrytools.ch_download_latest() for that many entries.
 from datetime import datetime
 from typing import Optional
 import lbrytools as lt
-import os, sys, argparse, shutil, patoolib
+import os, sys, argparse, shutil, patoolib, re
 
-cwd = "C:\\Users\\HostsServer\\Downloads\\p2aup"
-
+dl_path = "C:\\Users\\HostsServer\\Downloads\\p2aup"
+unfriendly = ["?","!","[","]",";",":","*","/","\\","}","{","(",")","'",'"']
+reg_unfriendly = ["?","!","[","\]",";",":","*","/","\\","}","{","(",")","'",'"']
 channels_list = [s.replace("https://odysee.com/", "").replace(":","#") for s in open("links.txt").readlines()]
 
 # Globals:
@@ -81,6 +82,65 @@ def download_channel(channel: str,
     print(f'Found {num_downloads} uploads from {channel}')
     _download(channel, num_downloads, download_path)
 
+def rename(dir, is_dir, filename, new_filename, join_filenames):
+    if is_dir:
+        os.rename(dir, f'{os.path.dirname(dir)}{os.path.sep}{new_filename}')
+    else:
+        os.rename(os.path.join(dir, filename), os.path.join(dir, new_filename))
+    print(f"New filename: {new_filename}")
+
+def sanitize_names(dir, filename, is_dir):
+    if " " in filename:
+        join_filenames = "_"
+        print(f"Oldname: {filename}")
+        fn_parts = [w for w in filename.split(" ")]
+        print(fn_parts)
+        new_filename = join_filenames.join(fn_parts)
+        rename(dir, is_dir, filename, new_filename, join_filenames)
+        filename = new_filename
+    if "%" in filename:
+        join_filenames = "percent"
+        print(f"Oldname: {filename}")
+        fn_parts = [w for w in filename.split('%')]
+        new_filename = join_filenames.join(fn_parts)
+        rename(dir, is_dir, filename, new_filename, join_filenames)
+        filename = new_filename
+    if "&" in filename:
+        join_filenames = "and"
+        print(f"Oldname: {filename}")
+        fn_parts = [w for w in filename.split('&')]
+        new_filename = join_filenames.join(fn_parts)
+        rename(dir, is_dir, filename, new_filename, join_filenames)
+        filename = new_filename
+    if any(char in filename for char in unfriendly):
+        join_filenames = ""
+        print(f"Oldname: {filename}")
+        joined_unfriendly = join_filenames.join(reg_unfriendly)
+        new_filename = re.sub(f'[{joined_unfriendly}]', join_filenames, filename)
+        rename(dir, is_dir, filename, new_filename, join_filenames)
+        filename = new_filename
+    if "_-_" in filename:
+        join_filenames = "-"
+        print(f"Oldname: {filename}")
+        fn_parts = [w for w in filename.split('_-_')]
+        new_filename = join_filenames.join(fn_parts)
+        rename(dir, is_dir, filename, new_filename, join_filenames)
+        filename = new_filename
+    return filename
+
+def make_friendly(path):
+    filenames = os.listdir(path)
+    print(filenames)
+    for dir,subdir,listfilename in os.walk(path):
+        print(dir)
+        if dir != path:
+            new_name = sanitize_names(dir, os.path.basename(dir), True)
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{new_name}'
+            print(dir)
+        for filename in listfilename:
+            print(f'filename = {filename}')
+            sanitize_names(dir, filename, False)
+
 def remove_dup_folders(rm_folder):
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
 
@@ -99,11 +159,15 @@ def extract_archives(root_path):
     for file in os.listdir(root_path):
         name, ext = os.path.splitext(file)
         out_path = f'{root_path}{os.path.sep}{name}'
-        if ext == 'rar':
+        if ext in ['.rar', '.zip', '.7z']:
             print(file)
             patoolib.extract_archive(os.path.join(root_path, file), outdir=out_path)
-            #remove_dup_folders(out_path)
-            #os.remove(os.path.join(root_path, file))
+            remove_dup_folders(out_path)
+            os.remove(os.path.join(root_path, file))
+        else:
+            #create folder of file name and add file to it
+            os.makedirs(out_path, exist_ok=True)
+            shutil.move(os.path.join(root_path, file), out_path)
 
 
 def main() -> None:
@@ -117,7 +181,7 @@ def main() -> None:
                         type=str, required=False)
     args = parser.parse_args()
     if not args.path:
-        download_path = cwd
+        download_path = dl_path
     else:
         download_path = args.path
     if not args.after_date:
@@ -143,7 +207,8 @@ def main() -> None:
             sys.exit(1)
     print(f"Extracting Archives...")
     #extract_archives(download_path)
-    print('done')
+    print(f"Sanitizing names...")
+    make_friendly(dl_path)
     sys.exit(0)
 
 
