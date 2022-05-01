@@ -19,6 +19,7 @@ from typing import Optional
 import lbrytools as lt
 import os, sys, argparse, shutil, patoolib, re
 
+cwd = os.getcwd()
 dl_path = "C:\\Users\\HostsServer\\Downloads\\p2aup"
 unfriendly = ["?","!","[","]",";",":","*","/","\\","}","{","(",")","'",'"']
 reg_unfriendly = ["?","!","[","\]",";",":","*","/","\\","}","{","(",")","'",'"']
@@ -87,59 +88,66 @@ def rename(dir, is_dir, filename, new_filename, join_filenames):
         os.rename(dir, f'{os.path.dirname(dir)}{os.path.sep}{new_filename}')
     else:
         os.rename(os.path.join(dir, filename), os.path.join(dir, new_filename))
-    print(f"New filename: {new_filename}")
 
 def sanitize_names(dir, filename, is_dir):
     if " " in filename:
         join_filenames = "_"
-        print(f"Oldname: {filename}")
         fn_parts = [w for w in filename.split(" ")]
-        print(fn_parts)
         new_filename = join_filenames.join(fn_parts)
         rename(dir, is_dir, filename, new_filename, join_filenames)
         filename = new_filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
     if "%" in filename:
         join_filenames = "percent"
-        print(f"Oldname: {filename}")
         fn_parts = [w for w in filename.split('%')]
         new_filename = join_filenames.join(fn_parts)
         rename(dir, is_dir, filename, new_filename, join_filenames)
         filename = new_filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
     if "&" in filename:
         join_filenames = "and"
-        print(f"Oldname: {filename}")
         fn_parts = [w for w in filename.split('&')]
         new_filename = join_filenames.join(fn_parts)
         rename(dir, is_dir, filename, new_filename, join_filenames)
         filename = new_filename
-    if any(char in filename for char in unfriendly):
-        join_filenames = ""
-        print(f"Oldname: {filename}")
-        joined_unfriendly = join_filenames.join(reg_unfriendly)
-        new_filename = re.sub(f'[{joined_unfriendly}]', join_filenames, filename)
-        rename(dir, is_dir, filename, new_filename, join_filenames)
-        filename = new_filename
-    if "_-_" in filename:
-        join_filenames = "-"
-        print(f"Oldname: {filename}")
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
+    if "+" in filename:
+        join_filenames = "plus"
         fn_parts = [w for w in filename.split('_-_')]
         new_filename = join_filenames.join(fn_parts)
         rename(dir, is_dir, filename, new_filename, join_filenames)
         filename = new_filename
-    return filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
+    if any(char in filename for char in unfriendly):
+        join_filenames = ""
+        joined_unfriendly = join_filenames.join(reg_unfriendly)
+        new_filename = re.sub(f'[{joined_unfriendly}]', join_filenames, filename)
+        rename(dir, is_dir, filename, new_filename, join_filenames)
+        filename = new_filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
+    if "_-_" in filename:
+        join_filenames = "-"
+        fn_parts = [w for w in filename.split('_-_')]
+        new_filename = join_filenames.join(fn_parts)
+        rename(dir, is_dir, filename, new_filename, join_filenames)
+        filename = new_filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
+    return dir
 
 def make_friendly(path):
-    filenames = os.listdir(path)
-    print(filenames)
+    os.chdir(path)
     for dir,subdir,listfilename in os.walk(path):
-        print(dir)
         if dir != path:
-            new_name = sanitize_names(dir, os.path.basename(dir), True)
-            dir = f'{os.path.dirname(dir)}{os.path.sep}{new_name}'
-            print(dir)
+            dir = sanitize_names(dir, os.path.basename(dir), True)
         for filename in listfilename:
-            print(f'filename = {filename}')
             sanitize_names(dir, filename, False)
+    os.chdir(cwd)
 
 def remove_dup_folders(rm_folder):
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
@@ -161,13 +169,14 @@ def extract_archives(root_path):
         out_path = f'{root_path}{os.path.sep}{name}'
         if ext in ['.rar', '.zip', '.7z']:
             print(file)
-            patoolib.extract_archive(os.path.join(root_path, file), outdir=out_path)
+            #patoolib.extract_archive(os.path.join(root_path, file), outdir=out_path)
             remove_dup_folders(out_path)
             os.remove(os.path.join(root_path, file))
         else:
             #create folder of file name and add file to it
-            os.makedirs(out_path, exist_ok=True)
-            shutil.move(os.path.join(root_path, file), out_path)
+            #os.makedirs(out_path, exist_ok=True)
+            #shutil.move(os.path.join(root_path, file), out_path)
+            print("Not an archive")
 
 
 def main() -> None:
@@ -206,7 +215,7 @@ def main() -> None:
             print(f'Exception caught: {repr(err)}')
             sys.exit(1)
     print(f"Extracting Archives...")
-    #extract_archives(download_path)
+    extract_archives(download_path)
     print(f"Sanitizing names...")
     make_friendly(dl_path)
     sys.exit(0)
