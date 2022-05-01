@@ -169,13 +169,13 @@ def extract_archives(root_path):
         out_path = f'{root_path}{os.path.sep}{name}'
         if ext in ['.rar', '.zip', '.7z']:
             print(file)
-            #patoolib.extract_archive(os.path.join(root_path, file), outdir=out_path)
+            patoolib.extract_archive(os.path.join(root_path, file), outdir=out_path)
             remove_dup_folders(out_path)
             os.remove(os.path.join(root_path, file))
         else:
             #create folder of file name and add file to it
-            #os.makedirs(out_path, exist_ok=True)
-            #shutil.move(os.path.join(root_path, file), out_path)
+            os.makedirs(out_path, exist_ok=True)
+            shutil.move(os.path.join(root_path, file), out_path)
             print("Not an archive")
 
 
