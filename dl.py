@@ -30,7 +30,6 @@ MAX_SEARCH_CLAIMS = 10000
 SERVER = 'http://localhost:5279'
 TS_FORMAT = '%Y-%m-%d'
 
-
 def find_num_downloads(channel: str, dt: datetime) -> int:
     '''
     Search a channel for the number of claims since a specified datetime.
@@ -140,12 +139,17 @@ def sanitize_names(dir, filename, is_dir):
             dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
     return dir
 
-def make_friendly(path):
+def make_friendly(path,self_called=False):
     for dir,subdir,listfilename in os.walk(path):
+        if not self_called:
+            print(dir.replace(dl_path,""))
         if dir != path:
             dir = sanitize_names(dir, os.path.basename(dir), True)
         for filename in listfilename:
             sanitize_names(dir, filename, False)
+        if subdir:
+            for new_dir in subdir:
+                make_friendly(os.path.join(dir,new_dir),True)
 
 def remove_dup_folders(rm_folder,project_name):
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
@@ -225,7 +229,8 @@ def main() -> None:
             sys.exit(1)
     print(f"Extracting Archives...")
     extract_archives(download_path)
-    print(f"Sanitizing names...")
+    print(f"Sanitizing folder and file names...")
+    print("Checked Directories : (list will populate as directories are traversed)")
     make_friendly(dl_path)
     sys.exit(0)
 
