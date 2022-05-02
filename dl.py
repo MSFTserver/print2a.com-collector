@@ -23,6 +23,35 @@ cwd = os.getcwd()
 dl_path = "C:\\Users\\HostsServer\\Downloads\\p2aup"
 unfriendly = ["?","!","[","]",";",":","*","/","\\","}","{","(",")","'",'"']
 reg_unfriendly = ["?","!","[","\]",";",":","*","/","\\","}","{","(",")","'",'"']
+video_ext_list = ['.3g2', '.3gp', '.amv', '.asf', '.avi', '.f4a', '.f4b', '.f4p',
+                  '.f4v', '.flv', '.flv', '.gifv', '.m4p', '.m4v', '.m4v', '.mkv',
+                  '.mng', '.mod', '.mov', '.mp2', '.mp4', '.mpe', '.mpeg', '.mpg',
+                  '.mpv', '.mxf', '.nsv', '.ogg', '.ogv', '.qt', '.rm', '.roq', 
+                  '.rrc', '.svi', '.vob', '.webm', '.wmv', '.yuv']
+archive_ext_list = ['.7z', '.a', '.ace', '.adf', '.alz', '.ape', '.arc', '.arj',
+                    '.bz2', '.cab', '.cb7', '.cba', '.cbr', '.cbt', '.cbz', '.cpio',
+                    '.dms', '.flac', '.gz', '.jar', '.lha', '.lrz', '.lz', '.lzh', 
+                    '.lzma', '.lzo', '.rar', '.rpm', '.rz', '.shn', '.tar', '.xz', 
+                    '.Z', '.zip', '.zoo']
+audio_ext_list = ['.aac', '.aiff', '.ape', '.au', '.flac', '.gsm', '.it', '.m3u', 
+                  '.m4a', '.mid', '.mod', '.mp3', '.mpa', '.pls', '.ra', '.s3m', 
+                  '.sid', '.wav', '.wma', '.xm']
+image_ext_list = ['.3dv', '.ai', '.amf', '.art', '.art', '.ase', '.awg', '.blp', 
+                  '.bmp', '.bw', '.bw', '.cd5', '.cdr', '.cgm', '.cit', '.cmx', 
+                  '.cpt', '.cr2', '.cur', '.cut', '.dds', '.dib', '.djvu', '.dxf', 
+                  '.e2d', '.ecw', '.egt', '.egt', '.emf', '.eps', '.exif', '.fs', 
+                  '.gbr', '.gif', '.gpl', '.grf', '.hdp', '.heic', '.heif' '.icns', 
+                  '.ico', '.iff', '.iff', '.int', '.int', '.inta', '.jfif', '.jng', 
+                  '.jp2', '.jpeg', '.jpg', '.jps', '.jxr', '.lbm', '.lbm', '.liff', 
+                  '.max', '.miff', '.mng', '.msp', '.nef', '.nitf', '.nrrd', '.odg', 
+                  '.ota', '.pam', '.pbm', '.pc1', '.pc2', '.pc3', '.pcf', '.pct', 
+                  '.pcx', '.pcx', '.pdd', '.pdn', '.pgf', '.pgm', '.PI1', '.PI2', 
+                  '.PI3', '.pict', '.png', '.pnm', '.pns', '.ppm', '.psb', '.psd', 
+                  '.psp', '.px', '.pxm', '.pxr', '.qfx', '.ras', '.raw', '.rgb', 
+                  '.rgb', '.rgba', '.rle', '.sct', '.sgi', '.sgi', '.sid', '.stl', 
+                  '.sun', '.svg', '.sxd', '.tga', '.tga', '.tif', '.tiff', '.v2d', 
+                  '.vnd', '.vrml', '.vtf', '.wdp', '.webp', '.wmf', '.x3d', '.xar', 
+                  '.xbm', '.xcf', '.xpm', ]
 channels_list = [s.replace("https://odysee.com/", "").replace(":","#") for s in open("links.txt").readlines()]
 
 # Globals:
@@ -83,63 +112,75 @@ def download_channel(channel: str,
     _download(channel, num_downloads, download_path)
 
 def rename(dir, is_dir, filename, new_filename, join_filenames):
+    '''
+    Rename a file.
+    '''
     if is_dir:
         os.rename(dir, f'{os.path.dirname(dir)}{os.path.sep}{new_filename}')
     else:
         os.rename(os.path.join(dir, filename), os.path.join(dir, new_filename))
 
-def sanitize_names(dir, filename, is_dir):
-    if " " in filename:
+def sanitize_names(dir, name, is_dir):
+    '''
+    Sanitize a name removing certain characters that dont work on windows or unix or are not URL friendly
+    '''
+    if " " in name:
         join_filenames = "_"
-        fn_parts = [w for w in filename.split(" ")]
+        fn_parts = [w for w in name.split(" ")]
         new_filename = join_filenames.join(fn_parts)
-        rename(dir, is_dir, filename, new_filename, join_filenames)
-        filename = new_filename
+        rename(dir, is_dir, name, new_filename, join_filenames)
+        name = new_filename
         if is_dir:
-            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
-    if "%" in filename:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+    if "%" in name:
         join_filenames = "percent"
-        fn_parts = [w for w in filename.split('%')]
+        fn_parts = [w for w in name.split('%')]
         new_filename = join_filenames.join(fn_parts)
-        rename(dir, is_dir, filename, new_filename, join_filenames)
-        filename = new_filename
+        rename(dir, is_dir, name, new_filename, join_filenames)
+        name = new_filename
         if is_dir:
-            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
-    if "&" in filename:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+    if "&" in name:
         join_filenames = "and"
-        fn_parts = [w for w in filename.split('&')]
+        fn_parts = [w for w in name.split('&')]
         new_filename = join_filenames.join(fn_parts)
-        rename(dir, is_dir, filename, new_filename, join_filenames)
-        filename = new_filename
+        rename(dir, is_dir, name, new_filename, join_filenames)
+        name = new_filename
         if is_dir:
-            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
-    if "+" in filename:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+    if "+" in name:
         join_filenames = "plus"
-        fn_parts = [w for w in filename.split('_-_')]
+        fn_parts = [w for w in name.split('_-_')]
         new_filename = join_filenames.join(fn_parts)
-        rename(dir, is_dir, filename, new_filename, join_filenames)
-        filename = new_filename
+        rename(dir, is_dir, name, new_filename, join_filenames)
+        name = new_filename
         if is_dir:
-            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
-    if any(char in filename for char in unfriendly):
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+    if any(char in name for char in unfriendly):
         join_filenames = ""
         joined_unfriendly = join_filenames.join(reg_unfriendly)
-        new_filename = re.sub(f'[{joined_unfriendly}]', join_filenames, filename)
-        rename(dir, is_dir, filename, new_filename, join_filenames)
-        filename = new_filename
+        new_filename = re.sub(f'[{joined_unfriendly}]', join_filenames, name)
+        rename(dir, is_dir, name, new_filename, join_filenames)
+        name = new_filename
         if is_dir:
-            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
-    if any(char in filename for char in ["_-_", "_-", "-_"]):
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+    if any(char in name for char in ["_-_", "_-", "-_"]):
         join_filenames = "-"
         joined_unfriendly = "|".join(["_-_", "_-", "-_"])
-        new_filename = re.sub(f'{joined_unfriendly}', join_filenames, filename)
-        rename(dir, is_dir, filename, new_filename, join_filenames)
-        filename = new_filename
+        new_filename = re.sub(f'{joined_unfriendly}', join_filenames, name)
+        rename(dir, is_dir, name, new_filename, join_filenames)
+        name = new_filename
         if is_dir:
-            dir = f'{os.path.dirname(dir)}{os.path.sep}{filename}'
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
     return dir
 
 def make_friendly(path,self_called=False):
+    '''
+    check wether the given path is a directory or a file
+    if it is a directory, it will be renamed to a friendly name and new dir path will be ruturned from the santizer
+    if it is a file, it will be renamed to a friendly name
+    if the directory includes subdirs we recursively call this function on them.
+    '''
     for dir,subdir,listfilename in os.walk(path):
         if not self_called:
             print(dir.replace(dl_path,""))
@@ -152,6 +193,17 @@ def make_friendly(path,self_called=False):
                 make_friendly(os.path.join(dir,new_dir),True)
 
 def traverse_dir(dir):
+    '''
+    Recusively Traverse a directory and remove all folders that only inlcude 1 directory and flatten
+     From This   -->   Into this
+        top      -->      top
+         |       -->     /   \
+        foo      -->    bar  baz
+       /   \     -->   /  \     \
+      bar  baz   --> car  caz    baz
+     /  \     \  -->
+   car  caz   car--> 
+    '''
     for dir,subdir,listfilename in os.walk(dir):
         if len(subdir) == 1 and not len(listfilename):
             for dir,subdir,listfilename in os.walk(os.path.join(dir,subdir[0])):
@@ -166,6 +218,15 @@ def traverse_dir(dir):
                 traverse_dir(dir)
 
 def remove_dup_folders(rm_folder,project_name):
+    '''
+    Remove duplicate folders due to extra folders created by extracting files
+     From This   -->   Into this
+        top      -->      top
+         |       -->     /   \
+        foo      -->    bar  baz
+       /   \     -->
+      bar  baz   -->
+    '''
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
     if len(dirs) == 1:
         for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0])):
@@ -182,18 +243,35 @@ def remove_dup_folders(rm_folder,project_name):
 
 
 def extract_archives(root_path):
+    '''
+    Extract all archives in the given path
+    also sorts out images, videos and audio files into seperate directories
+    if a file doesnt match any of these it is put in its own folder with same name as the file
+    '''
     for dir,subdir,listfilename in os.walk(root_path):
         for dir in subdir:
-            project_name = dir.replace('@','').rsplit('_',1)[0]
+            channel_name = dir.replace('@','').rsplit('_',1)[0]
             for file in os.listdir(f'{root_path}{os.path.sep}{dir}'):
                 name, ext = os.path.splitext(file)
-                new_name = f'{project_name}-{name}'
+                new_name = f'{channel_name}-{name}'
                 out_path = f'{root_path}{os.path.sep}{new_name}'
-                if ext in ['.rar', '.zip', '.7z']:
+                if ext in archive_ext_list:
                     print(f'Extracting {name}')
                     patoolib.extract_archive(os.path.join(root_path, dir, file), outdir=out_path, verbosity=-1)
-                    remove_dup_folders(out_path,project_name)
+                    remove_dup_folders(out_path,channel_name)
                     os.remove(os.path.join(root_path, dir, file))
+                elif ext in video_ext_list:
+                    video_path = os.path.join(out_path, f'{channel_name}-videos')
+                    os.makedirs(video_path, exist_ok=True)
+                    shutil.move(os.path.join(root_path, dir, file), video_path)
+                elif ext in audio_ext_list:
+                    audio_path = os.path.join(out_path, f'{channel_name}-audio')
+                    os.makedirs(audio_path, exist_ok=True)
+                    shutil.move(os.path.join(root_path, dir, file), audio_path)
+                elif ext in image_ext_list:
+                    images_path = os.path.join(out_path, f'{channel_name}-images')
+                    os.makedirs(images_path, exist_ok=True)
+                    shutil.move(os.path.join(root_path, dir, file), images_path)
                 else:
                     os.makedirs(out_path, exist_ok=True)
                     shutil.move(os.path.join(root_path, dir, file), out_path)
@@ -230,7 +308,7 @@ def main() -> None:
     for channel_name in channels_list:
         try:
             print(f'Downloading from {channel_name}...')
-            #download_channel(channel_name, dt, download_path)
+            download_channel(channel_name, dt, download_path)
         except (TypeError, ValueError, KeyError) as err:
             print(f'Caught exception while downloading channel {channel_name}')
             print(f'Exception caught: {repr(err)}')
