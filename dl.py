@@ -151,24 +151,21 @@ def make_friendly(path):
 
 def remove_dup_folders(rm_folder,project_name):
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
+    if len(dirs) == 1:
+        for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0])):
+            for filename in listfilename:
+                shutil.move(os.path.join(dir, filename), dir.rsplit(os.path.sep, 1)[0])
+            for dir in subdir:
+                for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0], dir)):
+                    shutil.move(dir, rm_folder)
+        os.rmdir(os.path.join(rm_folder, dirs[0]))
+        dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
     for dir in dirs:
         folder = os.path.join(rm_folder, dir)
-        print('folder : ',folder)
-        folders = [ name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name)) ]
-        for subfolder in folders:
-            print('folder base : ',os.path.basename(rm_folder))
-            dir_base_name = list(filter(None, os.path.basename(rm_folder).split(project_name+'-', 1)))
-            print('dir_base_name : ',dir_base_name)
-            if len(dir_base_name) == 2:
-                dir_base_name = dir_base_name[1]
-            else:
-                dir_base_name = os.path.basename(folder)
-            print('subfolder : ',subfolder)
-            print('dir_base_name : ',dir_base_name)
-            if subfolder == dir_base_name:
-                print('moved : '+os.path.join(dir_base_name, subfolder))
-                print('to : '+folder+'_p2aup1')
-                print('renamed : '+folder)
+        #folders = [ name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name)) ]
+        for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dir)):
+            print(dir)
+            print(subdir)
                 #shutil.move(os.path.join(dir_base_name, subfolder), folder+'_p2aup1')
                 #shutil.rmtree(folder,ignore_errors=True)
                 #os.rename(folder+'_p2aup1', folder)
