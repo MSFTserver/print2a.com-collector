@@ -151,6 +151,20 @@ def make_friendly(path,self_called=False):
             for new_dir in subdir:
                 make_friendly(os.path.join(dir,new_dir),True)
 
+def traverse_dir(dir):
+    for dir,subdir,listfilename in os.walk(dir):
+        if len(subdir) == 1 and not len(listfilename):
+            for dir,subdir,listfilename in os.walk(os.path.join(dir,subdir[0])):
+                for new_dir in subdir:
+                    shutil.move(os.path.join(dir,new_dir),dir.rsplit(os.path.sep, 1)[0])
+                for filename in listfilename:
+                    shutil.move(os.path.join(dir,filename),dir.rsplit(os.path.sep, 1)[0])
+                os.rmdir(os.path.join(dir))
+                dir = dir.rsplit(os.path.sep, 1)[0]
+            for new_dir in subdir:
+                subdir = [ name for name in os.listdir(dir) if os.path.isdir(os.path.join(dir, name)) ]
+                traverse_dir(dir)
+
 def remove_dup_folders(rm_folder,project_name):
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
     if len(dirs) == 1:
@@ -163,18 +177,11 @@ def remove_dup_folders(rm_folder,project_name):
         os.rmdir(os.path.join(rm_folder, dirs[0]))
         dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
     for dir in dirs:
-        for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dir)):
-            if len(subdir) == 1 and not len(listfilename):
-                for dir,subdir,listfilename in os.walk(os.path.join(dir,subdir[0])):
-                    for filename in listfilename:
-                        shutil.move(os.path.join(dir, filename), dir.rsplit(os.path.sep, 1)[0])
-                    for dir in subdir:
-                        shutil.move(dir, dir.rsplit(os.path.sep, 1)[0])
-                os.rmdir(dir)
+        traverse_dir(os.path.join(rm_folder, dir))
+        
 
 
 def extract_archives(root_path):
-    print(root_path)
     for dir,subdir,listfilename in os.walk(root_path):
         for dir in subdir:
             project_name = dir.replace('@','').rsplit('_',1)[0]
@@ -183,6 +190,7 @@ def extract_archives(root_path):
                 new_name = f'{project_name}-{name}'
                 out_path = f'{root_path}{os.path.sep}{new_name}'
                 if ext in ['.rar', '.zip', '.7z']:
+                    print(f'Extracting {name}')
                     patoolib.extract_archive(os.path.join(root_path, dir, file), outdir=out_path, verbosity=-1)
                     remove_dup_folders(out_path,project_name)
                     os.remove(os.path.join(root_path, dir, file))
@@ -233,7 +241,6 @@ def main() -> None:
     print("Checked Directories : (list will populate as directories are traversed)")
     make_friendly(dl_path)
     sys.exit(0)
-
 
 if __name__ == '__main__':
     main()
