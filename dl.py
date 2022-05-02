@@ -141,13 +141,11 @@ def sanitize_names(dir, filename, is_dir):
     return dir
 
 def make_friendly(path):
-    os.chdir(path)
     for dir,subdir,listfilename in os.walk(path):
         if dir != path:
             dir = sanitize_names(dir, os.path.basename(dir), True)
         for filename in listfilename:
             sanitize_names(dir, filename, False)
-    os.chdir(cwd)
 
 def remove_dup_folders(rm_folder,project_name):
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
@@ -161,14 +159,14 @@ def remove_dup_folders(rm_folder,project_name):
         os.rmdir(os.path.join(rm_folder, dirs[0]))
         dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
     for dir in dirs:
-        folder = os.path.join(rm_folder, dir)
-        #folders = [ name for name in os.listdir(folder) if os.path.isdir(os.path.join(folder, name)) ]
         for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dir)):
-            print(dir)
-            print(subdir)
-                #shutil.move(os.path.join(dir_base_name, subfolder), folder+'_p2aup1')
-                #shutil.rmtree(folder,ignore_errors=True)
-                #os.rename(folder+'_p2aup1', folder)
+            if len(subdir) == 1 and not len(listfilename):
+                for dir,subdir,listfilename in os.walk(os.path.join(dir,subdir[0])):
+                    for filename in listfilename:
+                        shutil.move(os.path.join(dir, filename), dir.rsplit(os.path.sep, 1)[0])
+                    for dir in subdir:
+                        shutil.move(dir, dir.rsplit(os.path.sep, 1)[0])
+                os.rmdir(dir)
 
 
 def extract_archives(root_path):
@@ -181,13 +179,12 @@ def extract_archives(root_path):
                 new_name = f'{project_name}-{name}'
                 out_path = f'{root_path}{os.path.sep}{new_name}'
                 if ext in ['.rar', '.zip', '.7z']:
-                    patoolib.extract_archive(os.path.join(root_path, dir, file), outdir=out_path)
+                    patoolib.extract_archive(os.path.join(root_path, dir, file), outdir=out_path, verbosity=-1)
                     remove_dup_folders(out_path,project_name)
                     os.remove(os.path.join(root_path, dir, file))
                 else:
-                    #os.makedirs(out_path, exist_ok=True)
-                    #shutil.move(os.path.join(root_path, dir, file), out_path)
-                    print("Not an archive")
+                    os.makedirs(out_path, exist_ok=True)
+                    shutil.move(os.path.join(root_path, dir, file), out_path)
             os.rmdir(os.path.join(root_path, dir))
 
 
@@ -229,7 +226,7 @@ def main() -> None:
     print(f"Extracting Archives...")
     extract_archives(download_path)
     print(f"Sanitizing names...")
-    #make_friendly(dl_path)
+    make_friendly(dl_path)
     sys.exit(0)
 
 
