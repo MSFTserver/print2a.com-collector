@@ -20,7 +20,7 @@ import lbrytools as lt
 import os, sys, argparse, shutil, patoolib, re
 
 cwd = os.getcwd()
-dl_path = "C:\\Users\\HostsServer\\Downloads\\p2aup"
+dl_path = "D:\\print2a-master-folder\\p2aup"
 unfriendly = ["?","!","[","]",";",":","*","/","\\","}","{","(",")","'",'"']
 reg_unfriendly = ["?","!","[","\]",";",":","*","/","\\","}","{","(",")","'",'"']
 video_ext_list = ['.3g2', '.3gp', '.amv', '.asf', '.avi', '.f4a', '.f4b', '.f4p',
@@ -256,6 +256,7 @@ def extract_archives(root_path):
                 new_name = f'{channel_name}-{name}'
                 out_path = f'{root_path}{os.path.sep}{new_name}'
                 if ext in archive_ext_list:
+                    os.makedirs(out_path, exist_ok=True)
                     print(f'Extracting {name}')
                     patoolib.extract_archive(os.path.join(root_path, dir, file), outdir=out_path, verbosity=-1)
                     remove_dup_folders(out_path,channel_name)
