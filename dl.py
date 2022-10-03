@@ -211,7 +211,7 @@ def traverse_dir(dir):
                     shutil.move(os.path.join(dir,new_dir),dir.rsplit(os.path.sep, 1)[0])
                 for filename in listfilename:
                     shutil.move(os.path.join(dir,filename),dir.rsplit(os.path.sep, 1)[0])
-                os.rmdir(os.path.join(dir))
+                shutil.rmtree(os.path.join(dir))
                 dir = dir.rsplit(os.path.sep, 1)[0]
             for new_dir in subdir:
                 subdir = [ name for name in os.listdir(dir) if os.path.isdir(os.path.join(dir, name)) ]
@@ -228,14 +228,17 @@ def remove_dup_folders(rm_folder,project_name):
       bar  baz   -->
     '''
     dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
-    if len(dirs) == 1:
+    files = [ name for name in os.listdir(rm_folder) if not os.path.isdir(os.path.join(rm_folder, name)) ]
+    print("dirs",dirs)
+    print("files",files)
+    if len(dirs) == 1 and len(files) == 0:
         for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0])):
             for filename in listfilename:
                 shutil.move(os.path.join(dir, filename), dir.rsplit(os.path.sep, 1)[0])
             for dir in subdir:
                 for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0], dir)):
                     shutil.move(dir, rm_folder)
-        os.rmdir(os.path.join(rm_folder, dirs[0]))
+        shutil.rmtree(os.path.join(rm_folder, dirs[0]))
         dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
     for dir in dirs:
         traverse_dir(os.path.join(rm_folder, dir))
@@ -276,7 +279,7 @@ def extract_archives(root_path):
                 else:
                     os.makedirs(out_path, exist_ok=True)
                     shutil.move(os.path.join(root_path, dir, file), out_path)
-            os.rmdir(os.path.join(root_path, dir))
+            shutil.rmtree(os.path.join(root_path, dir))
 
 
 def main() -> None:
