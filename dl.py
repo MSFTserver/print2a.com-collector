@@ -17,10 +17,10 @@ lbrytools.ch_download_latest() for that many entries.
 from datetime import datetime
 from typing import Optional
 import lbrytools as lt
-import os, sys, argparse, shutil, patoolib, re
+import os, sys, argparse, shutil, patoolib, re, time
 
 cwd = os.getcwd()
-dl_path = "D:\\print2a-master-folder\\p2aup"
+dl_path = "D:\\print2a-master-folder\\p2aup-test"
 unfriendly = ["?","!","[","]",";",":","*","/","\\","}","{","(",")","'",'"']
 reg_unfriendly = ["?","!","[","\]",";",":","*","/","\\","}","{","(",")","'",'"']
 video_ext_list = ['.3g2', '.3gp', '.amv', '.asf', '.avi', '.f4a', '.f4b', '.f4p',
@@ -48,7 +48,7 @@ image_ext_list = ['.3dv', '.ai', '.amf', '.art', '.art', '.ase', '.awg', '.blp',
                   '.pcx', '.pcx', '.pdd', '.pdn', '.pgf', '.pgm', '.PI1', '.PI2', 
                   '.PI3', '.pict', '.png', '.pnm', '.pns', '.ppm', '.psb', '.psd', 
                   '.psp', '.px', '.pxm', '.pxr', '.qfx', '.ras', '.raw', '.rgb', 
-                  '.rgb', '.rgba', '.rle', '.sct', '.sgi', '.sgi', '.sid', '.stl', 
+                  '.rgb', '.rgba', '.rle', '.sct', '.sgi', '.sgi', '.sid', 
                   '.sun', '.svg', '.sxd', '.tga', '.tga', '.tif', '.tiff', '.v2d', 
                   '.vnd', '.vrml', '.vtf', '.wdp', '.webp', '.wmf', '.x3d', '.xar', 
                   '.xbm', '.xcf', '.xpm', ]
@@ -81,7 +81,94 @@ def find_num_downloads(channel: str, dt: datetime) -> int:
         # to handle it here, but for now just immediately raise it.
         raise
 
+def traverse_dir(dir):
+    '''
+    Recusively Traverse a directory and remove all folders that only inlcude 1 directory and flatten
+     From This   -->   Into this
+        top      -->      top
+         |       -->     /   \
+        foo      -->    bar  baz
+       /   \     -->   /  \     \
+      bar  baz   --> car  caz    baz
+     /  \     \  -->
+   car  caz   car--> 
+    '''
+    for dir,subdir,listfilename in os.walk(dir):
+        if len(subdir) == 1 and not len(listfilename):
+            for dir,subdir,listfilename in os.walk(os.path.join(dir,subdir[0])):
+                for new_dir in subdir:
+                    shutil.move(os.path.join(dir,new_dir),dir.rsplit(os.path.sep, 1)[0])
+                for filename in listfilename:
+                    shutil.move(os.path.join(dir,filename),dir.rsplit(os.path.sep, 1)[0])
+                shutil.rmtree(os.path.join(dir))
+                dir = dir.rsplit(os.path.sep, 1)[0]
+            for new_dir in subdir:
+                subdir = [ name for name in os.listdir(dir) if os.path.isdir(os.path.join(dir, name)) ]
+                traverse_dir(dir)
 
+def remove_dup_folders(rm_folder,project_name):
+    '''
+    Remove duplicate folders due to extra folders created by extracting files
+     From This   -->   Into this
+        top      -->      top
+         |       -->     /   \
+        foo      -->    bar  baz
+       /   \     -->
+      bar  baz   -->
+    '''
+    dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
+    files = [ name for name in os.listdir(rm_folder) if not os.path.isdir(os.path.join(rm_folder, name)) ]
+    if len(dirs) == 1 and len(files) == 0:
+        for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0])):
+            for filename in listfilename:
+                shutil.move(os.path.join(dir, filename), dir.rsplit(os.path.sep, 1)[0])
+            for dir in subdir:
+                for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0], dir)):
+                    shutil.move(dir, rm_folder)
+        shutil.rmtree(os.path.join(rm_folder, dirs[0]))
+        dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
+    for dir in dirs:
+        traverse_dir(os.path.join(rm_folder, dir))
+        
+
+
+def extract_archives(root_path, channel_name):
+    '''
+    Extract all archives in the given path
+    also sorts out images, videos and audio files into seperate directories
+    if a file doesnt match any of these it is put in its own folder with same name as the file
+    '''
+    for dir,subdir,listfilename in os.walk(root_path):
+            for file in os.listdir(dir):
+                name, ext = os.path.splitext(file)
+                out_path = os.path.join(root_path, name)
+                print(dir)
+                if ext in archive_ext_list:
+                    os.makedirs(out_path, exist_ok=True)
+                    print(f'Extracting {name}')
+                    patoolib.extract_archive(os.path.join(root_path, dir, file), outdir=out_path, verbosity=-1)
+                    remove_dup_folders(out_path,channel_name)
+                    os.remove(os.path.join(root_path, dir, file))
+                elif ext in video_ext_list:
+                    video_path = os.path.join(root_path, f'{channel_name}-videos')
+                    os.makedirs(video_path, exist_ok=True)
+                    shutil.move(os.path.join(root_path, dir, file), video_path)
+                elif ext in audio_ext_list:
+                    audio_path = os.path.join(root_path, f'{channel_name}-audio')
+                    os.makedirs(audio_path, exist_ok=True)
+                    shutil.move(os.path.join(root_path, dir, file), audio_path)
+                elif ext in image_ext_list:
+                    images_path = os.path.join(root_path, f'{channel_name}-images')
+                    os.makedirs(images_path, exist_ok=True)
+                    shutil.move(os.path.join(root_path, dir, file), images_path)
+                elif os.path.isdir(os.path.join(root_path, dir, file)):
+                    continue
+                else:
+                    misc_path = os.path.join(root_path, f'{channel_name}-misc')
+                    os.makedirs(misc_path, exist_ok=True)
+                    shutil.move(os.path.join(root_path, dir, file), misc_path)
+    print("done extracting files!")
+    
 
 def _download(channel: str,
               max_downloads: int,
@@ -90,7 +177,7 @@ def _download(channel: str,
     Download a channel, grabbing all claims newer than download_date,
     that aren't in the dowload_path already.
     '''
-    lt.ch_download_latest(
+    downloaded_file = lt.ch_download_latest(
         channel=channel,
         number=max_downloads,
         ddir=download_path,
@@ -98,7 +185,39 @@ def _download(channel: str,
         repost=False,
         server=SERVER
     )
-
+    dl_metadata = [sub['metadata'] for sub in downloaded_file]
+    dl_title = [sub['claim_name'] for sub in downloaded_file][0]
+    dl_desc = [sub['description'] for sub in dl_metadata][0]
+    dl_source = [sub['source'] for sub in dl_metadata]
+    dl_size = int([sub['size'] for sub in dl_source][0])
+    dl_filename = [sub['file_name'] for sub in downloaded_file][0]
+    dl_path = [sub['download_path'] for sub in downloaded_file][0]
+    dl_dir = [sub['download_directory'] for sub in downloaded_file][0]
+    channel_name = dl_dir.rsplit('\\',1)[1]
+    url_channel_name, url_channel_claim = channel_name.rsplit('_',1)
+    new_filename, ext = dl_filename.rsplit('.',1)
+    print(os.path.exists(dl_path))
+    file_size = os.stat(dl_path).st_size
+    print("downloading...")
+    while not dl_size == file_size:
+        file_size = os.stat(dl_path).st_size
+        print(f'{file_size}/{dl_size}')
+        time.sleep(1)
+    print(f"Extracting Archive...")
+    extract_archives(dl_dir,channel_name)
+    if "."+ext in archive_ext_list:
+        desc_path = os.path.join(dl_dir, new_filename, f'lbry_description.md')
+        f = open(desc_path, "w+")
+        f.write(
+            dl_desc+
+            f'this file was auto created by print2a.com custom lbry collector, it is the description taken from the downloaded upload on the lbry/odysee post @ https://odysee.com/{url_channel_name}:{url_channel_claim}/{dl_title} \n\n'
+        )
+        f.close()
+    else :
+        desc_path = os.path.join(dl_dir, f'lbry_description.md')
+        f = open(desc_path, "w+")
+        f.write(dl_desc)
+        f.close()
 
 def download_channel(channel: str,
                      download_date: datetime,
@@ -192,96 +311,6 @@ def make_friendly(path,self_called=False):
             for new_dir in subdir:
                 make_friendly(os.path.join(dir,new_dir),True)
 
-def traverse_dir(dir):
-    '''
-    Recusively Traverse a directory and remove all folders that only inlcude 1 directory and flatten
-     From This   -->   Into this
-        top      -->      top
-         |       -->     /   \
-        foo      -->    bar  baz
-       /   \     -->   /  \     \
-      bar  baz   --> car  caz    baz
-     /  \     \  -->
-   car  caz   car--> 
-    '''
-    for dir,subdir,listfilename in os.walk(dir):
-        if len(subdir) == 1 and not len(listfilename):
-            for dir,subdir,listfilename in os.walk(os.path.join(dir,subdir[0])):
-                for new_dir in subdir:
-                    shutil.move(os.path.join(dir,new_dir),dir.rsplit(os.path.sep, 1)[0])
-                for filename in listfilename:
-                    shutil.move(os.path.join(dir,filename),dir.rsplit(os.path.sep, 1)[0])
-                shutil.rmtree(os.path.join(dir))
-                dir = dir.rsplit(os.path.sep, 1)[0]
-            for new_dir in subdir:
-                subdir = [ name for name in os.listdir(dir) if os.path.isdir(os.path.join(dir, name)) ]
-                traverse_dir(dir)
-
-def remove_dup_folders(rm_folder,project_name):
-    '''
-    Remove duplicate folders due to extra folders created by extracting files
-     From This   -->   Into this
-        top      -->      top
-         |       -->     /   \
-        foo      -->    bar  baz
-       /   \     -->
-      bar  baz   -->
-    '''
-    dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
-    files = [ name for name in os.listdir(rm_folder) if not os.path.isdir(os.path.join(rm_folder, name)) ]
-    print("dirs",dirs)
-    print("files",files)
-    if len(dirs) == 1 and len(files) == 0:
-        for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0])):
-            for filename in listfilename:
-                shutil.move(os.path.join(dir, filename), dir.rsplit(os.path.sep, 1)[0])
-            for dir in subdir:
-                for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0], dir)):
-                    shutil.move(dir, rm_folder)
-        shutil.rmtree(os.path.join(rm_folder, dirs[0]))
-        dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
-    for dir in dirs:
-        traverse_dir(os.path.join(rm_folder, dir))
-        
-
-
-def extract_archives(root_path):
-    '''
-    Extract all archives in the given path
-    also sorts out images, videos and audio files into seperate directories
-    if a file doesnt match any of these it is put in its own folder with same name as the file
-    '''
-    for dir,subdir,listfilename in os.walk(root_path):
-        for dir in subdir:
-            channel_name = dir.replace('@','').rsplit('_',1)[0]
-            for file in os.listdir(f'{root_path}{os.path.sep}{dir}'):
-                name, ext = os.path.splitext(file)
-                new_name = f'{channel_name}-{name}'
-                out_path = f'{root_path}{os.path.sep}{new_name}'
-                if ext in archive_ext_list:
-                    os.makedirs(out_path, exist_ok=True)
-                    print(f'Extracting {name}')
-                    patoolib.extract_archive(os.path.join(root_path, dir, file), outdir=out_path, verbosity=-1)
-                    remove_dup_folders(out_path,channel_name)
-                    os.remove(os.path.join(root_path, dir, file))
-                elif ext in video_ext_list:
-                    video_path = os.path.join(out_path, f'{channel_name}-videos')
-                    os.makedirs(video_path, exist_ok=True)
-                    shutil.move(os.path.join(root_path, dir, file), video_path)
-                elif ext in audio_ext_list:
-                    audio_path = os.path.join(out_path, f'{channel_name}-audio')
-                    os.makedirs(audio_path, exist_ok=True)
-                    shutil.move(os.path.join(root_path, dir, file), audio_path)
-                elif ext in image_ext_list:
-                    images_path = os.path.join(out_path, f'{channel_name}-images')
-                    os.makedirs(images_path, exist_ok=True)
-                    shutil.move(os.path.join(root_path, dir, file), images_path)
-                else:
-                    os.makedirs(out_path, exist_ok=True)
-                    shutil.move(os.path.join(root_path, dir, file), out_path)
-            shutil.rmtree(os.path.join(root_path, dir))
-
-
 def main() -> None:
     '''
     Argument parser and main function.
@@ -317,8 +346,6 @@ def main() -> None:
             print(f'Caught exception while downloading channel {channel_name}')
             print(f'Exception caught: {repr(err)}')
             sys.exit(1)
-    print(f"Extracting Archives...")
-    extract_archives(download_path)
     print(f"Sanitizing folder and file names...")
     print("Checked Directories : (list will populate as directories are traversed)")
     make_friendly(dl_path)
