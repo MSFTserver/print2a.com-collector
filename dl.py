@@ -17,7 +17,7 @@ lbrytools.ch_download_latest() for that many entries.
 from datetime import datetime
 from typing import Optional
 import lbrytools as lt
-import os, sys, argparse, shutil, patoolib, re, time, json
+import os, sys, argparse, shutil, patoolib, re, time, json, stat
 
 cwd = os.getcwd()
 dl_path = "D:\\print2a-master-folder\\test"
@@ -81,6 +81,10 @@ TS_FORMAT = '%Y-%m-%d'
 #         # to handle it here, but for now just immediately raise it.
 #         raise
 
+def set_rw(operation, name, exc):
+    os.chmod(name, stat.S_IWRITE)
+    os.chmod(name, stat.S_IWUSR)
+    operation(name)
 
 def traverse_dir(dir):
     '''
@@ -98,11 +102,25 @@ def traverse_dir(dir):
         if len(subdir) == 1 and not len(listfilename):
             for dir,subdir,listfilename in os.walk(os.path.join(dir,subdir[0])):
                 for new_dir in subdir:
-                    print(os.path.join(dir,new_dir),dir.rsplit(os.path.sep, 1)[0])
-                    shutil.move(os.path.join(dir,new_dir),dir.rsplit(os.path.sep, 1)[0])
+                    os.chmod(os.path.join(dir,new_dir), stat.S_IWRITE)
+                    os.chmod(os.path.join(dir,new_dir), stat.S_IWUSR)
+                    print(os.path.join(dir,new_dir))
+                    print(dir)
+                    print(dir + "MMMDELETETHISMMM")
+                    print(dir.rsplit(os.path.sep, 1)[0])
+                    if os.path.basename(dir) == os.path.split(os.path.split(dir)[0])[1]:
+                        new_name = dir + "MMMDELETETHISMMM"
+                        shutil.copytree(os.path.join(dir,new_dir), new_name)
+                        shutil.rmtree(os.path.join(dir,new_dir), onerror=set_rw)
+                        #os.makedirs(os.path.join(dir,new_name))
+                        shutil.move(os.path.join(dir,new_name), dir)
+                        for filename in listfilename:
+                            shutil.copy(os.path.join(dir,filename),dir.rsplit(os.path.sep, 1)[0])
+                    else:    
+                        shutil.move(os.path.join(dir,new_dir),dir.rsplit(os.path.sep, 1)[0])
                 for filename in listfilename:
-                    shutil.move(os.path.join(dir,filename),dir.rsplit(os.path.sep, 1)[0])
-                shutil.rmtree(os.path.join(dir))
+                    shutil.copy(os.path.join(dir,filename),dir.rsplit(os.path.sep, 1)[0])
+                shutil.rmtree(os.path.join(dir), onerror=set_rw)
                 dir = dir.rsplit(os.path.sep, 1)[0]
             for new_dir in subdir:
                 subdir = [ name for name in os.listdir(dir) if os.path.isdir(os.path.join(dir, name)) ]
@@ -123,11 +141,11 @@ def remove_dup_folders(rm_folder):
     if len(dirs) == 1 and len(files) == 0:
         for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0])):
             for filename in listfilename:
-                shutil.move(os.path.join(dir, filename), dir.rsplit(os.path.sep, 1)[0])
+                shutil.copy(os.path.join(dir, filename), dir.rsplit(os.path.sep, 1)[0])
             for dir in subdir:
                 for dir,subdir,listfilename in os.walk(os.path.join(rm_folder, dirs[0], dir)):
-                    shutil.move(dir, rm_folder)
-        shutil.rmtree(os.path.join(rm_folder, dirs[0]))
+                    shutil.copy(dir, rm_folder)
+        shutil.rmtree(os.path.join(rm_folder, dirs[0]), onerror=set_rw)
         dirs = [ name for name in os.listdir(rm_folder) if os.path.isdir(os.path.join(rm_folder, name)) ]
     for dir in dirs:
         traverse_dir(os.path.join(rm_folder, dir))
@@ -246,15 +264,20 @@ def rename(dir, is_dir, filename, new_filename, join_filenames):
     Rename a file.
     '''
     if is_dir:
-        os.rename(dir, f'{os.path.dirname(dir)}{os.path.sep}{new_filename}')
+        shutil.move(dir, f'{os.path.dirname(dir)}{os.path.sep}{new_filename}')
     else:
-        os.rename(os.path.join(dir, filename), os.path.join(dir, new_filename))
+        shutil.move(os.path.join(dir, filename), os.path.join(dir, new_filename))
 
 def sanitize_names(dir, name, is_dir):
     '''
     Sanitize a name removing certain characters that dont work on windows or unix or are not URL friendly
     '''
     if " " in name:
+        strip_spaces_filename = re.sub(' +', ' ', name)
+        rename(dir, is_dir, name, strip_spaces_filename, False)
+        name = strip_spaces_filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
         join_filenames = "_"
         fn_parts = [w for w in name.split(" ")]
         new_filename = join_filenames.join(fn_parts)
@@ -263,7 +286,7 @@ def sanitize_names(dir, name, is_dir):
         if is_dir:
             dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
     if "%" in name:
-        join_filenames = "percent"
+        join_filenames = "_percent_"
         fn_parts = [w for w in name.split('%')]
         new_filename = join_filenames.join(fn_parts)
         rename(dir, is_dir, name, new_filename, join_filenames)
@@ -271,7 +294,7 @@ def sanitize_names(dir, name, is_dir):
         if is_dir:
             dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
     if "&" in name:
-        join_filenames = "and"
+        join_filenames = "_and_"
         fn_parts = [w for w in name.split('&')]
         new_filename = join_filenames.join(fn_parts)
         rename(dir, is_dir, name, new_filename, join_filenames)
@@ -279,15 +302,24 @@ def sanitize_names(dir, name, is_dir):
         if is_dir:
             dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
     if "+" in name:
-        join_filenames = "plus"
-        fn_parts = [w for w in name.split('_-_')]
+        join_filenames = "_plus_"
+        fn_parts = [w for w in name.split('+')]
+        new_filename = join_filenames.join(fn_parts)
+        rename(dir, is_dir, name, new_filename, join_filenames)
+        name = new_filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+    if "," in name:
+        join_filenames = " "
+        fn_parts = [w for w in name.split(',')]
         new_filename = join_filenames.join(fn_parts)
         rename(dir, is_dir, name, new_filename, join_filenames)
         name = new_filename
         if is_dir:
             dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
     if any(char in name for char in unfriendly):
-        join_filenames = ""
+        print("illegal Char")
+        join_filenames = " "
         joined_unfriendly = join_filenames.join(reg_unfriendly)
         new_filename = re.sub(f'[{joined_unfriendly}]', join_filenames, name)
         rename(dir, is_dir, name, new_filename, join_filenames)
@@ -302,6 +334,24 @@ def sanitize_names(dir, name, is_dir):
         name = new_filename
         if is_dir:
             dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+    if " " in name:
+        strip_spaces_filename = re.sub(' +', ' ', name)
+        rename(dir, is_dir, name, strip_spaces_filename, False)
+        name = strip_spaces_filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+        join_filenames = "_"
+        fn_parts = [w for w in name.split(" ")]
+        new_filename = join_filenames.join(fn_parts)
+        rename(dir, is_dir, name, new_filename, join_filenames)
+        name = new_filename
+        if is_dir:
+            dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
+    strip_underscores_filename = re.sub('_+', '_', name)
+    rename(dir, is_dir, name, strip_underscores_filename, False)
+    name = strip_underscores_filename
+    if is_dir:
+        dir = f'{os.path.dirname(dir)}{os.path.sep}{name}'
     return dir
 
 def make_friendly(path,self_called=False):
